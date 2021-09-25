@@ -1,0 +1,201 @@
+
+Задание 3
+В базе данных вашей компании присутствуют следующие таблицы
+
+city city_id – id города, где проходит акция 
+client_city_id – id города, где находится покупатель 
+city – город client_city – город, где находится покупатель 
+client client_id – id покупателя 
+client_city_id – id города, где находится покупатель 
+birth_date – дата рождения покупателя 
+registration – дата регистрации покупателя 
+promotion promotion_id – id акции 
+category_id – id категории 
+promotion_name – акция 
+category_name – категория 
+partner_id – id партнёра 
+partner_name – партнёр 
+purchase purchase_id – id покупки 
+partner_id – id партнёра 
+lient_id – id покупателя 
+city_id – id города 
+promotion_id – id акции 
+category_id – id категории 
+purchase_date – дата покупки 
+price – цена за единицу товара 
+quantity – число проданных единиц 
+status – статус покупки
+
+Вам нужно написать запрос, чтобы получить такую таблицу
+
+purchase_date – дата покупки 
+purchase_id – id покупки 
+client_id – id покупателя 
+client_age – возраст покупателя 
+client_registration_age – как долго человек пользуется вашими магазинами 
+client_category – содержит new или old, если это первая или последующая покупка соответственно 
+promotion_name – акция 
+category_name – категория 
+partner_name – партнёр 
+client_city – город, где находится покупатель 
+city – город revenue – сумма выручки 
+quantity – число проданных единиц При этом в таблице должны присутствовать только значения, где в поле status стоит значение 1, и только те, где purchase_date находится в диапазоне от 01.05.2020 до 01.08.2020
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SELECT 
+    l.purchase_date,
+    l.purchase_id,
+    l.client_id,
+    r.client_age,
+    r.client_registration_age,
+    l.client_category,
+    l.promotion_name, 
+    l.category_name,
+    l.partner_name, 
+    r.client_city,
+    l.city,
+    l.revenue,
+    l.quantity
+    
+    
+FROM (
+
+SELECT
+    l.quantity,
+    l.purchase_id,
+    l.client_id,
+    l.purchase_date,
+    l.revenue,
+    l.client_category,
+    l.city,    
+    l.promotion_name,    
+    l.category_name,
+    r.partner_name
+FROM (
+
+    SELECT 
+        l.quantity,
+        l.partner_id,
+        l.purchase_id,
+        l.client_id,
+        l.purchase_date,
+        l.revenue,
+        l.client_category,
+        l.city,    
+        l.promotion_name,    
+        r.category_name
+    FROM(
+    
+        SELECT 
+            l.quantity,
+            l.category_id,
+            l.partner_id,
+            l.purchase_id,
+            l.client_id,
+            l.purchase_date,
+            l.revenue,
+            l.client_category,
+            l.city,    
+            
+            r.promotion_name
+            FROM (
+        
+            SELECT 
+                l.quantity,
+                l.promotion_id,
+                l.category_id,
+                l.partner_id,
+                l.purchase_id,
+                l.client_id,
+                l.purchase_date,
+                l.revenue,
+                l.city_id,
+                l.client_category,
+                r.city    
+            FROM 
+            (
+                    SELECT
+                    l.quantity,
+                    l.purchase_id,
+                    l.promotion_id,
+                    l.category_id,
+                    l.partner_id,
+                    l.client_id,
+                    l.purchase_date,
+                    l.price*quantity AS revenue,
+                    l.city_id,
+                    
+                    r.client_category
+                    FROM purchase as l
+                    JOIN ( 
+                        SELECT
+                            purchase_id,
+                            purchase_date,
+                            client_id,
+                            first_purchase,
+                            CASE WHEN purchase_date = first_purchase THEN 'new' ELSE 'old' END AS client_category
+                        FROM (
+                                SELECT 
+                                l.purchase_id,
+                                l.purchase_date,
+                                l.client_id,
+                                r.first_purchase
+                                
+                                from purchase AS l
+                                JOIN (
+                                    SELECT 
+                                    DISTINCT client_id,
+                                    MIN(purchase_date) AS first_purchase
+                                    FROM purchase
+                                    GROUP BY client_id
+                            ) AS r
+                            ON l.client_id=r.client_id
+                             ) 
+                             ) AS r
+                    ON l.purchase_id=r.purchase_id
+                    WHERE status = 1 AND  purchase_date BETWEEN '2020-05-01'  AND  '2020-08-01' 
+            ) AS l
+            JOIN (SELECT  DISTINCT city_id, city
+            FROM city ) AS r
+            ON l.city_id=r.city_id
+        ) AS l
+        JOIN promotion as r
+        ON l.promotion_id=r.promotion_id
+    ) AS l
+    JOIN promotion as r
+    ON l.category_id=r.category_id
+) AS l
+JOIN promotion as r
+ON l.partner_id=r.partner_id
+) AS l 
+
+JOIN (SELECT
+    l.client_id,
+    l.client_age,
+    l.client_registration_age,
+    r.client_city
+FROM(
+    SELECT 
+        client_id,
+        client_city_id,
+        dateDiff('year', toDateTime(birth_date), now()) client_age,
+        dateDiff('month', toDateTime(registration),now()) as client_registration_age
+    FROM client
+) AS l
+JOIN (SELECT  DISTINCT client_city_id, client_city
+FROM city ) AS r 
+ON l.client_city_id=r.client_city_id
+) AS r 
+ON l.client_id=r.client_id
